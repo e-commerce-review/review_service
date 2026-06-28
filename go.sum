@@ -20,6 +20,8 @@ github.com/fsnotify/fsnotify v1.10.1 h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx5
 github.com/fsnotify/fsnotify v1.10.1/go.mod h1:TLheqan6HD6GBK6PrDWyDPBaEV8LspOxvPSjC+bVfgo=
 github.com/go-kratos/kratos/contrib/otel/v3 v3.0.0-20260515082355-1ddb58e407c5 h1:FvzV+f61/k8ovG+ezFkF8S5rO3lNXKhYtmhaE91BIzg=
 github.com/go-kratos/kratos/contrib/otel/v3 v3.0.0-20260515082355-1ddb58e407c5/go.mod h1:hT2QNZ/0DPOvRqVqxoBBL/aMCOHhbbWh92mF87DBiCU=
+github.com/go-kratos/kratos/v2 v2.9.2 h1:px8GJQBeLpquDKQWQ9zohEWiLA8n4D/pv7aH3asvUvo=
+github.com/go-kratos/kratos/v2 v2.9.2/go.mod h1:Jc7jaeYd4RAPjetun2C+oFAOO7HNMHTT/Z4LxpuEDJM=
 github.com/go-kratos/kratos/v3 v3.0.0-20260515082355-1ddb58e407c5 h1:oJP1LX4wDyA/VVSJXs1eSrDV2a4LNwX6PCmGHJrBsAU=
 github.com/go-kratos/kratos/v3 v3.0.0-20260515082355-1ddb58e407c5/go.mod h1:8l+0M5UPlm/5hWLvS+wzxHRVRv6sHMG6Lgb4+rw1KIs=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=

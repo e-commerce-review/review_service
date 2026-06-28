@@ -34,7 +34,9 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *pb.CreateReviewRe
 		Anonymous:    anonymous,
 		Status:       0,
 	})
-
+	if err != nil {
+		return nil, err
+	}
 	return &pb.CreateReviewReply{ReviewID: review.ReviewID}, err
 }
 func (s *ReviewService) UpdateReview(ctx context.Context, req *pb.UpdateReviewRequest) (*pb.UpdateReviewReply, error) {

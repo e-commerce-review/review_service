@@ -6,6 +6,7 @@ import (
 	"review_service/internal/service"
 
 	"github.com/go-kratos/kratos/v3/middleware/recovery"
+	"github.com/go-kratos/kratos/v3/middleware/validate"
 	"github.com/go-kratos/kratos/v3/transport/grpc"
 )
 
@@ -14,6 +15,7 @@ func NewGRPCServer(c *conf.Server, review *service.ReviewService) *grpc.Server {
 	var opts = []grpc.ServerOption{
 		grpc.Middleware(
 			recovery.Recovery(),
+			validate.Validator(),
 		),
 	}
 	if c.Grpc.Network != "" {

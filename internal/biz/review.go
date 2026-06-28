@@ -2,8 +2,8 @@ package biz
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	v1 "review_service/api/review/v1"
 	"review_service/internal/data/model"
 	"review_service/pkg/snowflake"
 )
@@ -29,12 +29,11 @@ func (uc *ReviewUsecase) CreateReview(ctx context.Context, review *model.ReviewI
 	uc.log.DebugContext(ctx, "[biz] CreateReview", slog.Any("req", review))
 	reviews, err := uc.repo.GetReviewByOrderID(ctx, review.OrderID)
 	if err != nil {
-		return nil, err
+		return nil, v1.ErrorDbFailed("query database failed")
 	}
 	if len(reviews) > 0 {
-		return nil, fmt.Errorf("%dalready reviewed", review.OrderID)
+		return nil, v1.ErrorOrderReviewed("%d already reviewed", review.OrderID)
 	}
 	review.ReviewID = snowflake.GenID()
-
 	return uc.repo.SaveReview(ctx, review)
 }
