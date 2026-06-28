@@ -2,9 +2,8 @@ package biz
 
 import (
 	"context"
+	"log/slog"
 	"review_service/internal/data/model"
-
-	"github.com/go-kratos/kratos/v2/log"
 )
 
 type ReviewRepo interface {
@@ -13,17 +12,17 @@ type ReviewRepo interface {
 
 type ReviewUsecase struct {
 	repo ReviewRepo
-	log  *log.Helper
+	log  *slog.Logger
 }
 
-func NewReviewUsecase(repo ReviewRepo, logger log.Logger) *ReviewUsecase {
+func NewReviewUsecase(repo ReviewRepo, logger *slog.Logger) *ReviewUsecase {
 	return &ReviewUsecase{
 		repo: repo,
-		log:  log.NewHelper(logger),
+		log:  logger,
 	}
 }
 
 func (uc *ReviewUsecase) CreateReview(ctx context.Context, review *model.ReviewInfo) (*model.ReviewInfo, error) {
-	uc.log.WithContext(ctx).Debugf("[biz] CreateReview,req:%v", review)
+	uc.log.DebugContext(ctx, "[biz] CreateReview", slog.Any("req", review))
 	return uc.repo.SaveReview(ctx, review)
 }
