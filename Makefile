@@ -3,6 +3,7 @@ GOPATH:=$(shell go env GOPATH)
 VERSION=$(shell git describe --tags --always)
 API_PROTO_FILES=$(shell find api -name '*.proto')
 KRATOS_THIRD_PARTY=$(shell go list -m -f '{{.Dir}}' github.com/go-kratos/kratos/v3)/third_party
+GO_ERRORS_PLUGIN=github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v3@v3.0.0-20260626125723-668db92c2c00
 
 .PHONY: init
 # init env
@@ -32,7 +33,9 @@ validate:
 
 .PHONY: errors
 errors:
-	protoc --proto_path=. \
+	GOBIN=/tmp go install $(GO_ERRORS_PLUGIN)
+	protoc --plugin=protoc-gen-go-errors=/tmp/protoc-gen-go-errors \
+           --proto_path=. \
            --proto_path=./third_party \
 		   --proto_path=$(KRATOS_THIRD_PARTY) \
            --go_out=paths=source_relative:. \

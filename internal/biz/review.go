@@ -11,6 +11,8 @@ import (
 type ReviewRepo interface {
 	SaveReview(context.Context, *model.ReviewInfo) (*model.ReviewInfo, error)
 	GetReviewByOrderID(context.Context, int64) ([]*model.ReviewInfo, error)
+	GetReview(context.Context, int64) (*model.ReviewInfo, error)
+	AuditReview(context.Context, *AuditParam) error
 }
 
 type ReviewUsecase struct {
@@ -36,4 +38,16 @@ func (uc *ReviewUsecase) CreateReview(ctx context.Context, review *model.ReviewI
 	}
 	review.ReviewID = snowflake.GenID()
 	return uc.repo.SaveReview(ctx, review)
+}
+
+// GetReview 根据评价ID获取评价
+func (uc *ReviewUsecase) GetReview(ctx context.Context, reviewID int64) (*model.ReviewInfo, error) {
+	uc.log.DebugContext(ctx, "[biz] GetReview", slog.Any("reviewID", reviewID))
+	return uc.repo.GetReview(ctx, reviewID)
+}
+
+// AuditReview 审核评价
+func (uc *ReviewUsecase) AuditReview(ctx context.Context, param *AuditParam) error {
+	uc.log.DebugContext(ctx, "[biz] AuditReview", slog.Any("param", param))
+	return uc.repo.AuditReview(ctx, param)
 }

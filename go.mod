@@ -5,7 +5,6 @@ go 1.25.7
 require (
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/envoyproxy/protoc-gen-validate v1.3.3
-	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/google/wire v0.6.0
 	go.einride.tech/aip v0.86.3
 	go.uber.org/automaxprocs v1.6.0

@@ -19,7 +19,7 @@ func NewReviewService(uc *biz.ReviewUsecase) *ReviewService {
 
 func (s *ReviewService) CreateReview(ctx context.Context, req *pb.CreateReviewRequest) (*pb.CreateReviewReply, error) {
 	var anonymous int32
-	if req.Annoymous {
+	if req.Anonymous {
 		anonymous = 1
 	}
 	review, err := s.uc.CreateReview(ctx, &model.ReviewInfo{
@@ -39,15 +39,54 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *pb.CreateReviewRe
 	}
 	return &pb.CreateReviewReply{ReviewID: review.ReviewID}, err
 }
-func (s *ReviewService) UpdateReview(ctx context.Context, req *pb.UpdateReviewRequest) (*pb.UpdateReviewReply, error) {
-	return &pb.UpdateReviewReply{}, nil
-}
-func (s *ReviewService) DeleteReview(ctx context.Context, req *pb.DeleteReviewRequest) (*pb.DeleteReviewReply, error) {
-	return &pb.DeleteReviewReply{}, nil
-}
+
 func (s *ReviewService) GetReview(ctx context.Context, req *pb.GetReviewRequest) (*pb.GetReviewReply, error) {
-	return &pb.GetReviewReply{}, nil
+	review, err := s.uc.GetReview(ctx, req.ReviewID)
+	return &pb.GetReviewReply{
+		Data: &pb.ReviewInfo{
+			ReviewID:     review.ReviewID,
+			UserID:       review.UserID,
+			OrderID:      review.OrderID,
+			Score:        review.Score,
+			ServiceScore: review.ServiceScore,
+			ExpressScore: review.ExpressScore,
+			Content:      review.Content,
+			PicInfo:      review.PicInfo,
+			VideoInfo:    review.VideoInfo,
+			Status:       review.Status,
+		},
+	}, err
 }
-func (s *ReviewService) ListReview(ctx context.Context, req *pb.ListReviewRequest) (*pb.ListReviewReply, error) {
-	return &pb.ListReviewReply{}, nil
+
+func (s *ReviewService) AuditReview(ctx context.Context, req *pb.AuditReviewRequest) (*pb.AuditReviewReply, error) {
+	err := s.uc.AuditReview(ctx, &biz.AuditParam{
+		ReviewID:  req.ReviewID,
+		OpUser:    req.OpUser,
+		OpReason:  req.OpReason,
+		OpRemarks: *req.OpRemarks,
+		Status:    req.Status,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &pb.AuditReviewReply{
+		ReviewID: req.ReviewID,
+		Status:   req.Status,
+	}, nil
+}
+
+func (s *ReviewService) ReplyReview(ctx context.Context, req *pb.ReplyReviewRequest) (*pb.ReplyReviewReply, error) {
+	return &pb.ReplyReviewReply{}, nil
+}
+
+func (s *ReviewService) AppealReview(ctx context.Context, req *pb.AppealReviewRequest) (*pb.AppealReviewReply, error) {
+	return &pb.AppealReviewReply{}, nil
+}
+
+func (s *ReviewService) AuditAppeal(ctx context.Context, req *pb.AuditAppealRequest) (*pb.AuditAppealReply, error) {
+	return &pb.AuditAppealReply{}, nil
+}
+
+func (s *ReviewService) ListReviewByUserID(ctx context.Context, req *pb.ListReviewByUserIDRequest) (*pb.ListReviewByUserIDReply, error) {
+	return &pb.ListReviewByUserIDReply{}, nil
 }
