@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	pb "review_service/api/review/v1"
 	"review_service/internal/biz"
@@ -26,7 +27,8 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *pb.CreateReviewRe
 		UserID:       req.UserID,
 		OrderID:      req.OrderID,
 		Score:        req.Score,
-		ServiceScore: req.Score,
+		StoreID:      req.StoreID,
+		ServiceScore: req.ServiceScore,
 		ExpressScore: req.ExpressScore,
 		Content:      req.Content,
 		PicInfo:      req.PicInfo,
@@ -60,28 +62,28 @@ func (s *ReviewService) GetReview(ctx context.Context, req *pb.GetReviewRequest)
 
 func (s *ReviewService) AuditReview(ctx context.Context, req *pb.AuditReviewRequest) (*pb.AuditReviewReply, error) {
 	err := s.uc.AuditReview(ctx, &biz.AuditParam{
-		ReviewID:  req.ReviewID,
-		OpUser:    req.OpUser,
-		OpReason:  req.OpReason,
-		OpRemarks: *req.OpRemarks,
-		Status:    req.Status,
+		ReviewID:  req.GetReviewID(),
+		OpUser:    req.GetOpUser(),
+		OpReason:  req.GetOpReason(),
+		OpRemarks: req.GetOpRemarks(),
+		Status:    req.GetStatus(),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &pb.AuditReviewReply{
-		ReviewID: req.ReviewID,
-		Status:   req.Status,
+		ReviewID: req.GetReviewID(),
+		Status:   req.GetStatus(),
 	}, nil
 }
 
 func (s *ReviewService) ReplyReview(ctx context.Context, req *pb.ReplyReviewRequest) (*pb.ReplyReviewReply, error) {
 	reply, err := s.uc.CreateReply(ctx, &biz.ReplyParam{
-		ReviewID:  req.ReviewID,
-		StoreID:   req.StoreID,
-		Content:   req.Content,
-		PicInfo:   req.PicInfo,
-		VideoInfo: req.VideoInfo,
+		ReviewID:  req.GetReviewID(),
+		StoreID:   req.GetStoreID(),
+		Content:   req.GetContent(),
+		PicInfo:   req.GetPicInfo(),
+		VideoInfo: req.GetVideoInfo(),
 	})
 	if err != nil {
 		return nil, err
@@ -90,13 +92,54 @@ func (s *ReviewService) ReplyReview(ctx context.Context, req *pb.ReplyReviewRequ
 }
 
 func (s *ReviewService) AppealReview(ctx context.Context, req *pb.AppealReviewRequest) (*pb.AppealReviewReply, error) {
-	return &pb.AppealReviewReply{}, nil
+	fmt.Printf("[service] AppealReview req:%#v\n", req)
+	ret, err := s.uc.AppealReview(ctx, &biz.AppealParam{
+		ReviewID:  req.GetReviewID(),
+		StoreID:   req.GetStoreID(),
+		Reason:    req.GetReason(),
+		Content:   req.GetContent(),
+		PicInfo:   req.GetPicInfo(),
+		VideoInfo: req.GetVideoInfo(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("[service] AppealReview ret:%v err:%v\n", ret, err)
+	return &pb.AppealReviewReply{AppealID: ret.AppealID}, nil
 }
-
 func (s *ReviewService) AuditAppeal(ctx context.Context, req *pb.AuditAppealRequest) (*pb.AuditAppealReply, error) {
+	fmt.Printf("[service] AuditAppeal req:%#v\n", req)
+	err := s.uc.AuditAppeal(ctx, &biz.AuditAppealParam{
+		ReviewID: req.GetReviewID(),
+		AppealID: req.GetAppealID(),
+		OpUser:   req.GetOpUser(),
+		Status:   req.GetStatus(),
+	})
+	if err != nil {
+		return nil, err
+	}
 	return &pb.AuditAppealReply{}, nil
 }
-
 func (s *ReviewService) ListReviewByUserID(ctx context.Context, req *pb.ListReviewByUserIDRequest) (*pb.ListReviewByUserIDReply, error) {
-	return &pb.ListReviewByUserIDReply{}, nil
+	fmt.Printf("[service] ListReviewByUserID req:%#v\n", req)
+	dataList, err := s.uc.ListReviewByUserID(ctx, req.GetUserID(), int(req.GetPage()), int(req.GetSize()))
+	if err != nil {
+		return nil, err
+	}
+	list := make([]*pb.ReviewInfo, 0, len(dataList))
+	for _, review := range dataList {
+		list = append(list, &pb.ReviewInfo{
+			ReviewID:     review.ReviewID,
+			UserID:       review.UserID,
+			OrderID:      review.OrderID,
+			Score:        review.Score,
+			ServiceScore: review.ServiceScore,
+			ExpressScore: review.ExpressScore,
+			Content:      review.Content,
+			PicInfo:      review.PicInfo,
+			VideoInfo:    review.VideoInfo,
+			Status:       review.Status,
+		})
+	}
+	return &pb.ListReviewByUserIDReply{List: list}, nil
 }
