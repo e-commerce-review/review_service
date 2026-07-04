@@ -1,9 +1,13 @@
-FROM golang:1.25 AS builder
+FROM golang:1.26 AS builder
+ARG VERSION=dev
+ARG SERVICE_NAME=review_service
 
 COPY . /src
 WORKDIR /src
 
-RUN GOPROXY=https://goproxy.cn make build
+RUN mkdir -p bin/ && GOPROXY=https://goproxy.cn go build \
+	-ldflags "-X main.Version=${VERSION} -X main.Name=${SERVICE_NAME}" \
+	-o ./bin/ ./...
 
 FROM debian:stable-slim
 
@@ -21,4 +25,4 @@ EXPOSE 8000
 EXPOSE 9000
 VOLUME /data/conf
 
-CMD ["./server", "-conf", "/data/conf"]
+CMD ["./review_service", "-conf", "/data/conf"]
