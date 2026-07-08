@@ -179,3 +179,13 @@ func (r *reviewRepo) ListReviewByUserID(ctx context.Context, userID int64, offse
 		Offset(offset).
 		Find()
 }
+
+func (r *reviewRepo) ListReviewByStoreID(ctx context.Context, storeID int64, offset, limit int) ([]*model.ReviewInfo, error) {
+	return r.data.query.ReviewInfo.
+		WithContext(ctx).
+		Where(r.data.query.ReviewInfo.StoreID.Eq(storeID)).
+		Order(r.data.query.ReviewInfo.ID.Desc()).
+		Limit(limit).
+		Offset(offset).
+		Find()
+}
