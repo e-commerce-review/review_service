@@ -2,13 +2,16 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"review_service/internal/biz"
 	"review_service/internal/data/model"
 	"review_service/internal/data/query"
 	"review_service/pkg/snowflake"
 
+	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -180,12 +183,40 @@ func (r *reviewRepo) ListReviewByUserID(ctx context.Context, userID int64, offse
 		Find()
 }
 
-func (r *reviewRepo) ListReviewByStoreID(ctx context.Context, storeID int64, offset, limit int) ([]*model.ReviewInfo, error) {
-	return r.data.query.ReviewInfo.
-		WithContext(ctx).
-		Where(r.data.query.ReviewInfo.StoreID.Eq(storeID)).
-		Order(r.data.query.ReviewInfo.ID.Desc()).
-		Limit(limit).
-		Offset(offset).
-		Find()
+// ListReviewByStoreID 根据storeID 分页查询评价
+func (r *reviewRepo) ListReviewByStoreID(ctx context.Context, storeID int64, offset, limit int) ([]*biz.ReviewInfo, error) {
+	// 去ES里面查询评价
+	resp, err := r.data.es.Search().
+		Index("review").
+		From(offset).
+		Size(limit).
+		Query(&types.Query{
+			Bool: &types.BoolQuery{
+				Filter: []types.Query{
+					{
+						Term: map[string]types.TermQuery{
+							"store_id": {Value: storeID},
+						},
+					},
+				},
+			},
+		}).
+		Do(ctx)
+	fmt.Printf("--> es search: %v %v\n", resp, err)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("es result total:%v\n", resp.Hits.Total.Value)
+	list := make([]*biz.ReviewInfo, 0, resp.Hits.Total.Value)
+
+	for _, hit := range resp.Hits.Hits {
+		tmp := &biz.ReviewInfo{}
+		if err := json.Unmarshal(hit.Source_, tmp); err != nil {
+			r.log.ErrorContext(ctx, "json.unmarshal failed", "err", err)
+			continue
+		}
+		list = append(list, tmp)
+	}
+
+	return list, nil
 }

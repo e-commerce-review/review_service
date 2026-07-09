@@ -146,24 +146,25 @@ func (s *ReviewService) ListReviewByUserID(ctx context.Context, req *pb.ListRevi
 
 func (s *ReviewService) ListReviewByStoreID(ctx context.Context, req *pb.ListReviewByStoreIDRequest) (*pb.ListReviewByStoreIDReply, error) {
 	fmt.Printf("[service] ListReviewByStoreID req:%#v\n", req)
-	dataList, err := s.uc.ListReviewByStoreID(ctx, req.GetStoreID(), int(req.GetPage()), int(req.GetSize()))
+	ret, err := s.uc.ListReviewByStoreID(ctx, req.GetStoreID(), int(req.GetPage()), int(req.GetSize()))
 	if err != nil {
 		return nil, err
 	}
-	list := make([]*pb.ReviewInfo, 0, len(dataList))
-	for _, review := range dataList {
+	list := make([]*pb.ReviewInfo, 0, len(ret))
+	for _, r := range ret {
 		list = append(list, &pb.ReviewInfo{
-			ReviewID:     review.ReviewID,
-			UserID:       review.UserID,
-			OrderID:      review.OrderID,
-			Score:        review.Score,
-			ServiceScore: review.ServiceScore,
-			ExpressScore: review.ExpressScore,
-			Content:      review.Content,
-			PicInfo:      review.PicInfo,
-			VideoInfo:    review.VideoInfo,
-			Status:       review.Status,
+			ReviewID:     r.ReviewID,
+			UserID:       r.UserID,
+			OrderID:      r.OrderID,
+			Score:        r.Score,
+			ServiceScore: r.ServiceScore,
+			ExpressScore: r.ExpressScore,
+			Content:      r.Content,
+			PicInfo:      r.PicInfo,
+			VideoInfo:    r.VideoInfo,
+			Status:       r.Status,
 		})
 	}
 	return &pb.ListReviewByStoreIDReply{List: list}, nil
+
 }
