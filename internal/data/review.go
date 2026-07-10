@@ -190,45 +190,13 @@ func (r *reviewRepo) ListReviewByUserID(ctx context.Context, userID int64, offse
 
 // ListReviewByStoreID 根据storeID 分页查询评价
 func (r *reviewRepo) ListReviewByStoreID(ctx context.Context, storeID int64, offset, limit int) ([]*biz.ReviewInfo, error) {
-	// 去ES里面查询评价
-	resp, err := r.data.es.Search().
-		Index("review").
-		From(offset).
-		Size(limit).
-		Query(&types.Query{
-			Bool: &types.BoolQuery{
-				Filter: []types.Query{
-					{
-						Term: map[string]types.TermQuery{
-							"store_id": {Value: storeID},
-						},
-					},
-				},
-			},
-		}).
-		Do(ctx)
-	fmt.Printf("--> es search: %v %v\n", resp, err)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Printf("es result total:%v\n", resp.Hits.Total.Value)
-	list := make([]*biz.ReviewInfo, 0, resp.Hits.Total.Value)
-
-	for _, hit := range resp.Hits.Hits {
-		tmp := &biz.ReviewInfo{}
-		if err := json.Unmarshal(hit.Source_, tmp); err != nil {
-			r.log.ErrorContext(ctx, "json.unmarshal failed", "err", err)
-			continue
-		}
-		list = append(list, tmp)
-	}
-
-	return list, nil
+	return r.getData(ctx, storeID, offset, limit)
 }
 
 var g singleflight.Group
 
-func (r *reviewRepo) getData(ctx context.Context, key string) ([]byte, error) {
+func (r *reviewRepo) getData(ctx context.Context, storeID int64, offset, limit int) ([]*biz.ReviewInfo, error) {
+	key := fmt.Sprintf("review:%d:%d:%d", storeID, offset, limit)
 	v, err, shared := g.Do("key", func() (any, error) {
 		data, err := r.getDataFromCache(ctx, key)
 		r.log.DebugContext(ctx, "r.getDataFromCache", "data", data, "err", err)
@@ -248,7 +216,21 @@ func (r *reviewRepo) getData(ctx context.Context, key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return v.([]byte), nil
+	hm := new(types.HitsMetadata)
+	if err := json.Unmarshal(v.([]byte), hm); err != nil {
+		return nil, err
+	}
+	list := make([]*biz.ReviewInfo, 0, hm.Total.Value)
+	for _, hit := range hm.Hits {
+		tmp := &biz.ReviewInfo{}
+		if err := json.Unmarshal(hit.Source_, tmp); err != nil {
+			r.log.ErrorContext(ctx, "json.unmarshal failed", "err", err)
+			continue
+		}
+		list = append(list, tmp)
+
+	}
+	return list, nil
 }
 
 func (r *reviewRepo) getDataFromCache(ctx context.Context, key string) ([]byte, error) {
