@@ -10,8 +10,13 @@ import (
 	"review_service/internal/data/model"
 	"review_service/internal/data/query"
 	"review_service/pkg/snowflake"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -219,4 +224,74 @@ func (r *reviewRepo) ListReviewByStoreID(ctx context.Context, storeID int64, off
 	}
 
 	return list, nil
+}
+
+var g singleflight.Group
+
+func (r *reviewRepo) getData(ctx context.Context, key string) ([]byte, error) {
+	v, err, shared := g.Do("key", func() (any, error) {
+		data, err := r.getDataFromCache(ctx, key)
+		r.log.DebugContext(ctx, "r.getDataFromCache", "data", data, "err", err)
+		if err == nil {
+			return data, nil
+		}
+		if errors.Is(err, redis.Nil) {
+			data, err := r.getDataFromES(ctx, key)
+			if err == nil {
+				return data, r.setCache(ctx, key, data)
+			}
+			return nil, err
+		}
+		return nil, err
+	})
+	r.log.DebugContext(ctx, "single flight", "v", v, "err", err, "shared", shared)
+	if err != nil {
+		return nil, err
+	}
+	return v.([]byte), nil
+}
+
+func (r *reviewRepo) getDataFromCache(ctx context.Context, key string) ([]byte, error) {
+	r.log.DebugContext(ctx, "getDataFromCache", "key", key)
+	return r.data.rdb.Get(ctx, key).Bytes()
+}
+
+func (r *reviewRepo) getDataFromES(ctx context.Context, key string) ([]byte, error) {
+	values := strings.Split(key, ":")
+	if len(values) < 4 {
+		return nil, errors.New("invalid key")
+	}
+	index, storeID, offsetStr, limitStr := values[0], values[1], values[2], values[3]
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		return nil, errors.New("invalid offset")
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		return nil, errors.New("invalid limit")
+	}
+	resp, err := r.data.es.Search().
+		Index(index).
+		From(offset).
+		Size(limit).
+		Query(&types.Query{
+			Bool: &types.BoolQuery{
+				Filter: []types.Query{
+					{
+						Term: map[string]types.TermQuery{
+							"store_id": {Value: storeID},
+						},
+					},
+				},
+			},
+		}).
+		Do(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(resp.Hits)
+}
+
+func (r *reviewRepo) setCache(ctx context.Context, key string, data []byte) error {
+	return r.data.rdb.Set(ctx, key, data, time.Second*10).Err()
 }

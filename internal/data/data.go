@@ -9,27 +9,29 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/google/wire"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
-var ProviderSet = wire.NewSet(NewData, NewReviewRepo, NewDB, NewESClient)
+var ProviderSet = wire.NewSet(NewData, NewReviewRepo, NewDB, NewRedisClient, NewESClient)
 
 // Data .
 type Data struct {
 	query *query.Query
 	log   *slog.Logger
 	es    *elasticsearch.TypedClient
+	rdb   *redis.Client
 }
 
 // NewData .
-func NewData(db *gorm.DB, esclient *elasticsearch.TypedClient, logger *slog.Logger) (*Data, func(), error) {
+func NewData(db *gorm.DB, esclient *elasticsearch.TypedClient, rdb *redis.Client, logger *slog.Logger) (*Data, func(), error) {
 	cleanup := func() {
 		logger.Info("closing the data resources")
 	}
 	query.SetDefault(db)
 
-	return &Data{query: query.Q, log: logger, es: esclient}, cleanup, nil
+	return &Data{query: query.Q, log: logger, es: esclient, rdb: rdb}, cleanup, nil
 }
 
 func NewESClient(cfg *conf.Elasticsearch) (*elasticsearch.TypedClient, error) {
@@ -45,4 +47,13 @@ func NewDB(cfg *conf.Data) (*gorm.DB, error) {
 		return gorm.Open(mysql.Open(cfg.Database.GetSource()))
 	}
 	return nil, errors.New("connect db fail unsupported db driver")
+}
+
+func NewRedisClient(cfg *conf.Data) *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Network:      cfg.Redis.GetNetwork(),
+		Addr:         cfg.Redis.GetAddr(),
+		WriteTimeout: cfg.Redis.GetWriteTimeout().AsDuration(),
+		ReadTimeout:  cfg.Redis.GetReadTimeout().AsDuration(),
+	})
 }
