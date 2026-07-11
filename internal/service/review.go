@@ -44,6 +44,9 @@ func (s *ReviewService) CreateReview(ctx context.Context, req *pb.CreateReviewRe
 
 func (s *ReviewService) GetReview(ctx context.Context, req *pb.GetReviewRequest) (*pb.GetReviewReply, error) {
 	review, err := s.uc.GetReview(ctx, req.ReviewID)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.GetReviewReply{
 		Data: &pb.ReviewInfo{
 			ReviewID:     review.ReviewID,
@@ -110,10 +113,12 @@ func (s *ReviewService) AppealReview(ctx context.Context, req *pb.AppealReviewRe
 func (s *ReviewService) AuditAppeal(ctx context.Context, req *pb.AuditAppealRequest) (*pb.AuditAppealReply, error) {
 	fmt.Printf("[service] AuditAppeal req:%#v\n", req)
 	err := s.uc.AuditAppeal(ctx, &biz.AuditAppealParam{
-		ReviewID: req.GetReviewID(),
-		AppealID: req.GetAppealID(),
-		OpUser:   req.GetOpUser(),
-		Status:   req.GetStatus(),
+		ReviewID:  req.GetReviewID(),
+		AppealID:  req.GetAppealID(),
+		OpUser:    req.GetOpUser(),
+		OpReason:  req.GetOpReason(),
+		OpRemarks: req.GetOpRemarks(),
+		Status:    req.GetStatus(),
 	})
 	if err != nil {
 		return nil, err

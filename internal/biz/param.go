@@ -31,8 +31,10 @@ type AppealParam struct {
 
 // AuditAppealParam O端审核商家申诉的参数
 type AuditAppealParam struct {
-	ReviewID int64
-	AppealID int64
-	OpUser   string
-	Status   int32
+	ReviewID  int64
+	AppealID  int64
+	OpUser    string
+	OpReason  string
+	OpRemarks string
+	Status    int32
 }

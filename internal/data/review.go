@@ -18,7 +18,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type reviewRepo struct {
@@ -67,15 +66,17 @@ func (r *reviewRepo) SaveReply(ctx context.Context, reply *model.ReviewReplyInfo
 	err = r.data.query.Transaction(func(tx *query.Query) error {
 		if err := tx.ReviewReplyInfo.WithContext(ctx).Save(reply); err != nil {
 			r.log.ErrorContext(ctx, "saveReply create reply failed", "err", err)
+			return err
 		}
 		if _, err := tx.ReviewInfo.WithContext(ctx).
 			Where(tx.ReviewInfo.ReviewID.Eq(reply.ReviewID)).
 			Update(tx.ReviewInfo.HasReply, 1); err != nil {
 			r.log.ErrorContext(ctx, "saveReply update reply failed", "err", err)
+			return err
 		}
 		return nil
 	})
-	return reply, nil
+	return reply, err
 }
 
 func (r *reviewRepo) GetReviewReply(ctx context.Context, reviewID int64) (*model.ReviewReplyInfo, error) {
@@ -99,14 +100,6 @@ func (r *reviewRepo) AppealReview(ctx context.Context, param *biz.AppealParam) (
 	if err == nil && ret.Status > 10 {
 		return nil, errors.New("该评价已有审核过的申诉记录")
 	}
-	// 查询不到审核过的申诉记录
-	// 1. 有申诉记录但是处于待审核状态，需要更新
-	// if ret != nil{
-	// 	// update
-	// }else{
-	// 	// insert
-	// }
-	// 2. 没有申诉记录，需要创建
 	appeal := &model.ReviewAppealInfo{
 		ReviewID:  param.ReviewID,
 		StoreID:   param.StoreID,
@@ -118,24 +111,22 @@ func (r *reviewRepo) AppealReview(ctx context.Context, param *biz.AppealParam) (
 	}
 	if ret != nil {
 		appeal.AppealID = ret.AppealID
-	} else {
-		appeal.AppealID = snowflake.GenID()
-	}
-	err = r.data.query.ReviewAppealInfo.
-		WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "review_id"}, // ON DUPLICATE KEY
-			},
-			DoUpdates: clause.Assignments(map[string]interface{}{ // UPDATE
+		_, err = r.data.query.ReviewAppealInfo.
+			WithContext(ctx).
+			Where(r.data.query.ReviewAppealInfo.AppealID.Eq(ret.AppealID)).
+			Updates(map[string]interface{}{
 				"status":     appeal.Status,
 				"content":    appeal.Content,
 				"reason":     appeal.Reason,
 				"pic_info":   appeal.PicInfo,
 				"video_info": appeal.VideoInfo,
-			}),
-		}).
-		Create(appeal) // INSERT
+			})
+	} else {
+		appeal.AppealID = snowflake.GenID()
+		err = r.data.query.ReviewAppealInfo.
+			WithContext(ctx).
+			Create(appeal)
+	}
 	r.log.DebugContext(ctx, "[data] AppealReview", "err", err)
 	return appeal, err
 }
@@ -147,8 +138,9 @@ func (r *reviewRepo) AuditAppeal(ctx context.Context, param *biz.AuditAppealPara
 			WithContext(ctx).
 			Where(r.data.query.ReviewAppealInfo.AppealID.Eq(param.AppealID)).
 			Updates(map[string]interface{}{
-				"status":  param.Status,
-				"op_user": param.OpUser,
+				"status":     param.Status,
+				"op_user":    param.OpUser,
+				"op_remarks": param.OpRemarks,
 			}); err != nil {
 			return err
 		}
@@ -156,7 +148,12 @@ func (r *reviewRepo) AuditAppeal(ctx context.Context, param *biz.AuditAppealPara
 		if param.Status == 20 { // 申诉通过则需要隐藏评价
 			if _, err := tx.ReviewInfo.WithContext(ctx).
 				Where(tx.ReviewInfo.ReviewID.Eq(param.ReviewID)).
-				Update(tx.ReviewInfo.Status, 40); err != nil {
+				Updates(map[string]interface{}{
+					"status":     40,
+					"op_user":    param.OpUser,
+					"op_reason":  param.OpReason,
+					"op_remarks": param.OpRemarks,
+				}); err != nil {
 				return err
 			}
 		}
@@ -196,8 +193,8 @@ func (r *reviewRepo) ListReviewByStoreID(ctx context.Context, storeID int64, off
 var g singleflight.Group
 
 func (r *reviewRepo) getData(ctx context.Context, storeID int64, offset, limit int) ([]*biz.ReviewInfo, error) {
-	key := fmt.Sprintf("review:%d:%d:%d", storeID, offset, limit)
-	v, err, shared := g.Do("key", func() (any, error) {
+	key := fmt.Sprintf("review_info:%d:%d:%d", storeID, offset, limit)
+	v, err, shared := g.Do(key, func() (any, error) {
 		data, err := r.getDataFromCache(ctx, key)
 		r.log.DebugContext(ctx, "r.getDataFromCache", "data", data, "err", err)
 		if err == nil {

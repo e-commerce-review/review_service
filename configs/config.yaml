@@ -18,9 +18,10 @@ snowflake:
   start_time: "2026-01-01"
   machine_id: 1
   
-consul:
-  address: 127.0.0.1:8500
-  scheme: http
+registry:
+  consul:
+    addr: 127.0.0.1:8500
+    scheme: http
 elasticsearch:
-  address: 
-    -"http://127.0.0.1:9200"
+  addresses:
+    - "http://127.0.0.1:9200"
